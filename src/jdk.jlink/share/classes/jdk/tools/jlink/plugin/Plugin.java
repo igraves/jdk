@@ -167,6 +167,14 @@ public interface Plugin {
     }
 
     /**
+     * Does this plugin consume all remaining arguments on the command line?
+     * @return false if plugin consumes all remaining arguments
+     */
+    public default boolean consumesArguments() {
+        return false;
+    }
+
+    /**
      * The plugin argument(s) description.
      * @return  The argument(s) description.
      */

@@ -99,6 +99,7 @@ public final class TaskHelper {
         final String shortname;
         final String shortname2;
         final boolean terminalOption;
+        final boolean consumingOption;
 
         public Option(boolean hasArg,
                       Processing<T> processing,
@@ -106,7 +107,8 @@ public final class TaskHelper {
                       String name,
                       String shortname,
                       String shortname2,
-                      boolean isTerminal)
+                      boolean isTerminal,
+                      boolean isConsuming)
         {
             if (!name.startsWith("--")) {
                 throw new RuntimeException("option name missing --, " + name);
@@ -122,6 +124,7 @@ public final class TaskHelper {
             this.shortname = shortname;
             this.shortname2 = shortname2;
             this.terminalOption = isTerminal;
+            this.consumingOption = isConsuming;
         }
         public Option(boolean hasArg,
                       Processing<T> processing,
@@ -130,23 +133,28 @@ public final class TaskHelper {
                       String shortname,
                       boolean isTerminal)
         {
-            this(hasArg, processing, hidden, name, shortname, "", isTerminal);
+            this(hasArg, processing, hidden, name, shortname, "", isTerminal, false);
+        }
+        public Option(boolean hasArg, Processing<T> processing, boolean hidden, String name,
+                      String shortname, boolean isTerminal, boolean consumesArgs)
+        {
+            this(hasArg, processing, hidden, name, shortname, "", isTerminal, consumesArgs);
         }
 
         public Option(boolean hasArg, Processing<T> processing, String name, String shortname, boolean isTerminal) {
-            this(hasArg, processing, false, name, shortname, "", isTerminal);
+            this(hasArg, processing, false, name, shortname, "", isTerminal, false);
         }
 
         public Option(boolean hasArg, Processing<T> processing, String name, String shortname, String shortname2) {
-            this(hasArg, processing, false, name, shortname, shortname2, false);
+            this(hasArg, processing, false, name, shortname, shortname2, false, false);
         }
 
         public Option(boolean hasArg, Processing<T> processing, String name, String shortname) {
-            this(hasArg, processing, false, name, shortname, "", false);
+            this(hasArg, processing, false, name, shortname, "", false, false);
         }
 
         public Option(boolean hasArg, Processing<T> processing, boolean hidden, String name) {
-            this(hasArg, processing, hidden, name, "", "", false);
+            this(hasArg, processing, hidden, name, "", "", false, false);
         }
 
         public Option(boolean hasArg, Processing<T> processing, String name) {
@@ -159,6 +167,10 @@ public final class TaskHelper {
 
         public boolean isTerminal() {
             return terminalOption;
+        }
+
+        public boolean isConsuming() {
+            return consumingOption;
         }
 
         public boolean matches(String opt) {
@@ -215,6 +227,12 @@ public final class TaskHelper {
                             boolean hidden, String name) {
             super(hasArg, processing, hidden, name, "", false);
         }
+
+        public PluginOption(boolean hasArg, Processing<PluginsHelper> processing,
+                            boolean hidden, String name, boolean consumesArgs) {
+            super(hasArg, processing, hidden, name, "", false, consumesArgs);
+        }
+
 
         @Override
         public String resourcePrefix() {
@@ -354,7 +372,7 @@ public final class TaskHelper {
                                     }
                                 }
                             },
-                            false, "--" + option);
+                            false, "--" + option, plugin.consumesArguments());
             pluginsOptions.add(plugOption);
 
             if (Utils.isFunctional(plugin)) {
@@ -537,7 +555,26 @@ public final class TaskHelper {
                     }
                     Option<?> opt = pluginOption == null ? option : pluginOption;
                     String param = null;
-                    if (opt.hasArg) {
+                    if (opt.isConsuming()) {
+                        if (++i < args.length) {
+                            if (args[i].charAt(0) == '@') {
+                                String argfile = args[i].substring(1);
+                                try {
+                                    param = Files.readString(Path.of(argfile));
+                                } catch (IOException e) {
+                                    throw new PluginException("Argfile " + argfile + " is not readable");
+                                }
+                            } else {
+                                param = Stream.of(Arrays.copyOfRange(args, i, args.length))
+                                        .reduce("", (left, right) -> left + " " + right);
+                                i = args.length;
+                            }
+                        } else {
+                            throw new BadArgs("err.missing.arg", name).
+                                    showUsage(true);
+                        }
+                    }
+                    if (opt.hasArg && !opt.isConsuming()) {
                         if (name.startsWith("--") && name.indexOf('=') > 0) {
                             param = name.substring(name.indexOf('=') + 1,
                                     name.length());

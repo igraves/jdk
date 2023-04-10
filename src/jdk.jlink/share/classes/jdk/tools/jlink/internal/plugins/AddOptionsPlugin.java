@@ -35,4 +35,8 @@ public final class AddOptionsPlugin extends AddResourcePlugin {
         super("add-options", "/java.base/jdk/internal/vm/options");
     }
 
+    @Override
+    public boolean consumesArguments() {
+        return true;
+    }
 }
