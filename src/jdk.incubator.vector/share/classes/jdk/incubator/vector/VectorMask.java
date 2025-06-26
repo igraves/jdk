@@ -28,6 +28,9 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.vector.VectorSupport;
 
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -215,6 +218,38 @@ public abstract class VectorMask<E> extends jdk.internal.vm.vector.VectorSupport
     }
 
     /**
+     * Loads a mask from a {@code MemorySegment} starting at an offset.
+     * <p>
+     * For each mask lane, where {@code N} is the mask lane index,
+     * if the byte at index {@code offset + N} is {@code != 0} then the
+     * mask lane at index {@code N} is set, otherwise it is unset.
+     *
+     * @param species vector species for the desired mask
+     * @param ms the {@code MemorySegment}
+     * @param offset the offset into the {@code MemorySegment}
+     * @param <E> the boxed element type
+     * @param bo the byte order to use for reading the mask
+     * @return the mask loaded from the {@code MemorySegment}
+     * @throws IndexOutOfBoundsException if {@code offset < 0}, or
+     *         {@code offset > ms.byteSize() - VLENGTH}
+     * @since 26
+     */
+    public static <E> VectorMask<E> fromMemorySegment(VectorSpecies<E> species, MemorySegment ms,
+                                                      long offset, ByteOrder bo) {
+
+        AbstractSpecies<E> vsp = (AbstractSpecies<E>) species;
+        int laneCount = vsp.laneCount();
+        offset = VectorIntrinsics.checkFromIndexSize(offset, laneCount, ms.byteSize());
+        MemorySegment arraySlice = ms.asSlice(offset);
+        byte[] byteMasks = arraySlice.toArray(ValueLayout.JAVA_BYTE.withOrder(bo));
+        boolean[] bits = new boolean[laneCount];
+        for (int i = 0; i < laneCount; i++) {
+            bits[i] = byteMasks[i] != 0;
+        }
+        return fromArray(species, bits, 0);
+    }
+
+    /**
      * Returns a mask where each lane is set or unset according to
      * the bits in the given bitmask, starting with the least
      * significant bit, and continuing up to the sign bit.
@@ -332,6 +367,18 @@ public abstract class VectorMask<E> extends jdk.internal.vm.vector.VectorSupport
      *         {@code offset > a.length - this.length()}
      */
     public abstract void intoArray(boolean[] a, int offset);
+
+    /**
+     * Stores this mask into a {@code MemorySegment} starting at the given offset.
+     * @param ms the MemorySegment
+     * @param offset the offset into the MemorySegment
+     * @param bo the byte order to use for storing the mask
+     * @throws IllegalArgumentException if the segment {@code ms} is read-only
+     * @throws IndexOutOfBoundsException if {@code offset < 0} or
+     *         {@code offset > ms.byteSize() - this.length()}
+     * @since 26
+     */
+    public abstract void intoMemorySegment(MemorySegment ms, long offset, ByteOrder bo);
 
     /**
      * Returns {@code true} if any of the mask lanes are set.

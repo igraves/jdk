@@ -352,7 +352,7 @@ public abstract class VectorShuffle<E> extends jdk.internal.vm.vector.VectorSupp
      * @return a shuffle where each lane's source index is set to the given
      *         {@code int} value, partially wrapped if exceptional
      * @throws IndexOutOfBoundsException if {@code offset < 0}, or
-     *         {@code offset > sourceIndexes.byteSize() - VLENGTH * 4}
+     *         {@code offset > ms.byteSize() - VLENGTH * 4}
      * @since 25
      */
     @ForceInline
@@ -605,7 +605,7 @@ public abstract class VectorShuffle<E> extends jdk.internal.vm.vector.VectorSupp
      * @param offset the offset into the segment
      * @param bo the byte order
      * @throws IndexOutOfBoundsException if {@code offset < 0} or
-     *        {@code offset > a.byteSize() - this.length() * 4}
+     *        {@code offset > ms.byteSize() - this.length() * 4}
      * @throws IllegalArgumentException if the segment {@code ms} is read-only
      * @since 25
      */
