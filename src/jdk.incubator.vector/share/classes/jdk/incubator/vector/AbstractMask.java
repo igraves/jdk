@@ -24,6 +24,9 @@
  */
 package jdk.incubator.vector;
 
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
+import java.nio.ByteOrder;
 import java.util.Objects;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -83,6 +86,21 @@ abstract class AbstractMask<E> extends VectorMask<E> {
     @Override
     public boolean[] toArray() {
         return getBits().clone();
+    }
+
+    @Override
+    public void intoMemorySegment(MemorySegment ms, long offset, ByteOrder bo) {
+        AbstractSpecies<E> vsp = (AbstractSpecies<E>) vectorSpecies();
+        int laneCount = vsp.laneCount();
+        offset = VectorIntrinsics.checkFromIndexSize(offset, laneCount, ms.byteSize());
+        ms = ms.asSlice(offset);
+        for (int i = 0; i < laneCount; i++) {
+            if (getBits()[i]) { // high bit
+                ms.set(ValueLayout.JAVA_BYTE.withOrder(bo), i, (byte) -1);
+            } else { // low bit
+                ms.set(ValueLayout.JAVA_BYTE.withOrder(bo), i, (byte) 0);
+            }
+        }
     }
 
     @Override
